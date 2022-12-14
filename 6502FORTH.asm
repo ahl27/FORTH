@@ -27,6 +27,7 @@
 ;;;
 ;;; Variables/Setup
 ;;; (zero paging common variables for speed)
+;;;
 
 ;;; 2 byte variables
 IP=$0050                   ; Forth instruction pointer
@@ -46,12 +47,11 @@ WORDSPC=$7EC0              ; temp space for parsing words (<=63 chars)
 
 jmp initstart
 
-
 ;;;
 ;;; Initialization/Configuration
 ;;;
 initstart:
-  ldx #$FF                 ; initializes stack pointer to 00FF, top of zero page
+  ldx #$FF                 ; initializes stack pointer to $00FF, top of zero page
   
   ;; Initializing values for variables
 
@@ -66,7 +66,7 @@ initstart:
   ;; Initialize dictionary top to last entry on dictionary (defined below)
   lda #d0entry 
   sta DT                   ; store first byte
-  INA
+  ina
   sta DT+1                 ; store second byte
 
 
