@@ -7,4 +7,4 @@ implementation for a 65C02 8-bit computer. I'll be posting about progress on thi
 
 If I'm not totally done with FORTH by the end of this project, I'll look into porting it to the 65C816 family of microprocessors.
 
-I'm not planning to stick to the ANSI standard FORTH, though once I have a working build I'll consider looking at how much effort it would take to ANSIfy it. Rumor on the street is FORTH works best on 16-bit systems, so I may save that challenge for the 65C816 build I have tentatively planned.
+I'm not planning to stick to the ANS standard FORTH, though once I have a working build I'll consider looking at how much effort it would take to ANSify it. Rumor on the street is FORTH works best on 16-bit systems, so I may save that challenge for the 65C816 build I have tentatively planned.
