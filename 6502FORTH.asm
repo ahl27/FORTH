@@ -215,6 +215,9 @@ exit:
   jmp next
 
 
+;;; DOLIT Definition ;;;
+
+
 
 ;;; Test code will go here
 gotest:
