@@ -29,6 +29,8 @@
 ;;; (zero paging common variables for speed)
 ;;;
 
+* = $0300                 ; Program counter
+
 ;;; 2 byte variables
 IP=$50                    ; Forth instruction pointer
 RP=$52                    ; return stack pointer
@@ -51,7 +53,7 @@ jmp initstart
 ;;; Initialization/Configuration
 ;;;
 initstart:
-  ldx #$FF                 ; initializes stack pointer to $00FF, top of zero page
+  jsr initstack            ; initializes stack pointer to $00FF, top of zero page
   
   ;; Initializing values for variables
 
@@ -64,16 +66,16 @@ initstart:
 
 
   ;; Initialize dictionary top to last entry on dictionary (defined below)
-  lda #d0entry 
+  lda #<d0entry 
   sta DT                   ; store first byte
-  ina
+  lda #>d0entry
   sta DT+1                 ; store second byte
 
 
   ;; jump to test code
   jmp gotest
 
-
+#include "stack16.asm"
 
 ;;;
 ;;; Dictionary
@@ -169,14 +171,18 @@ next:
   ;; finding the location of the next word
   ;; we advance 2 bytes
   ;; bne skips upper byte if we haven't rolled over
+.(
   inc IP
-  bne .cont1
+  bne continue
   inc IP+1
-.cont1:
+  continue:
+.)
+.(
   inc IP
-  bne .cont2
+  bne continue
   inc IP+1
-.cont2:
+  continue:
+.)
   ;; IP now points at location of next word to execute.
   ;; We need to fetch that location, then store it in TMP1.
   ldy #0 

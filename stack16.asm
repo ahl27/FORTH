@@ -20,6 +20,7 @@
 ;; All data will be stored little-endian so that loading with builtins
 ;; is a lot easier
 stackaccess = $80
+stackbase = $00
 
 initstack:
   ldx #$FF              ; top of stack
@@ -33,10 +34,10 @@ initstack:
 ;; value comes from stackaccess (must store first)
 push16:
   lda stackaccess+1     ; first byte (big end)
-  sta x
+  sta stackbase,x
   dex
   lda stackaccess     ; second byte (little end)
-  sta x
+  sta stackbase,x
   dex 
   rts
 
@@ -44,20 +45,20 @@ push16:
 ;; Uses: A, stackaccess
 pop16:
   inx                 ; start by moving up one place in stack
-  lda x               
+  lda stackbase,x               
   sta stackaccess     ; first byte (big end)
   inx
-  lda x               
+  lda stackbase,x               
   sta stackaccess+1   ; second byte (little end)
   rts
 
 ;; Duplicate top value onto stack
 dup16:
-  lda x+2             ; load first byte of previous stack entry
-  sta x               ; store it at top of stack
+  lda stackbase+2,x             ; load first byte of previous stack entry
+  sta stackbase,x               ; store it at top of stack
   dex                   
-  lda x+2             ; repeat for second byte
-  sta x
+  lda stackbase+2,x             ; repeat for second byte
+  sta stackbase,x
   dex
   rts
 
@@ -66,22 +67,22 @@ dup16:
 ;;       ensure stackaccess value is stored in TMP before calling swap
 swap16:
   ; start by moving the top value into stackaccess
-  lda x+1             ; first byte (big end) in stackaccess
+  lda stackbase+1,x             ; first byte (big end) in stackaccess
   sta stackaccess
-  lda x+2             ; second byte (little end) in stackaccess+1
+  lda stackbase+2,x             ; second byte (little end) in stackaccess+1
   sta stackaccess+1
 
   ; copy second entry to top
-  lda x+3
-  sta x+1
-  lda x+4
-  sta x+2
+  lda stackbase+3,x
+  sta stackbase+1,x
+  lda stackbase+4,x
+  sta stackbase+2,x
 
   ; copy 2 stackaccess bytes to second entry
   lda stackaccess
-  sta x+3
+  sta stackbase+3,x
   lda stackaccess+1
-  sta x+4
+  sta stackbase+4,x
 
   rts
 
@@ -90,14 +91,14 @@ add16:
   clc                 ; clear carry bit
 
   ; add lower byte (LSB) and store in second slot
-  lda x+1
-  adc x+3
-  sta x+3
+  lda stackbase+1,x
+  adc stackbase+3,x
+  sta stackbase+3,x
 
   ; add upper byte (MSB) and store in second slot
-  lda x+2
-  adc x+4
-  sta x+4
+  lda stackbase+2,x
+  adc stackbase+4,x
+  sta stackbase+4,x
 
   ; shrink the stack so the sum is now on top
   inx
@@ -105,18 +106,18 @@ add16:
   rts
 
 ;; Same as add16, but for subtract
-sub16
+sub16:
   sec                 ; set carry bit
 
   ; subtract lower byte
-  lda x+3
-  sbc x+1
-  sta x+3
+  lda stackbase+3,x
+  sbc stackbase+1,x
+  sta stackbase+3,x
 
   ; subtract upper byte
-  lda x+4
-  sbc x+2
-  sta x+4
+  lda stackbase+4,x
+  sbc stackbase+2,x
+  sta stackbase+4,x
 
   ; shrink stack so difference on top
   inx
