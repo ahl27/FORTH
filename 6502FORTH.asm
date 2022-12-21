@@ -75,6 +75,9 @@ initstart:
   ;; jump to test code
   jmp gotest
 
+;;;
+;;; File Includes
+;;;
 #include "stack16.asm"
 
 ;;;
@@ -92,31 +95,31 @@ initstart:
 
 ;;; TODO, just have one entry as a placeholder
 d0entry:
-  BYTE 4
-  BYTE "exit"
+  .byte 4
+  .byte "exit"
 d0link:
-  WORD $0000
+  .word $0000
 d0code:
-  WORD exit
+  .word exit
 
 
 ;;; Test Dictionary Entries go here
 doquitword
-  BYTE 0
+  .byte 0
 doquitlink
-  WORD $0000
+  .word $0000
 doquitcode
-  WORD interploop
+  .word interploop
 
 dummy
-  BYTE 0
+  .byte 0
 dummylink
-  WORD $0000
+  .word $0000
 dummycode
-  WORD dolist      ; won't actually run this, start with NEXT instead
+  .word dolist      ; won't actually run this, start with NEXT instead
 dummyparam
-  WORD $0000       ; will write in the actual code link word here
-  WORD doquitcode
+  .word $0000       ; will write in the actual code link word here
+  .word doquitcode
 
 ;;;
 ;;; Inner Interpreter
@@ -222,8 +225,59 @@ exit:
 
 
 ;;; DOLIT Definition ;;;
+dolit:
+  ; dolit operates on the word list of the word
+  ; from which it's called.
+.(
+  ; Increment IP to next cell (stores the value to go to)
+  inc IP
+  bne continue
+  inc IP+1
+  continue:
+.)
+.(
+  inc IP
+  bne continue
+  inc IP+1
+  continue:
+.)
+  ; load the value in the next cell
+  ldy #0 
+  lda (IP),y
+
+  ; push to data stack
+  sta stackaccess
+  iny
+  lda (IP),y
+  sta stackaccess+1
+  jsr push16
+
+  ; then jump to next to execute
+  jmp next
 
 
+;;;
+;;; Built-In Primitives
+;;;
+doplus:
+  jsr add16
+  jmp next
+
+dominus:
+  jsr sub16
+  jmp next
+
+dodup:
+  jsr dup16
+  jmp next
+
+dodrop:
+  jsr pop16
+  jmp next
+
+doswap:
+  jsr swap16
+  jmp next
 
 ;;; Test code will go here
 gotest:
