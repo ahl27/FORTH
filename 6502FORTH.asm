@@ -22,7 +22,7 @@
 ;;; Initial Design based on SECND (https://github.com/dourish/secnd/blob/master/secnd1.a65)
 ;;; Will be adapted once the implementation is working at a base level
 ;;;
-;;; This will be compiled using NASM
+;;; This will be compiled using xa65
 
 ;;;
 ;;; Variables/Setup

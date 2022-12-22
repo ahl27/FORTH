@@ -1,6 +1,6 @@
-#ifldef VIA
-#else
-  #include "memlocs.asm"
+#ifndef memlocs_incl
+#define memlocs_incl true
+#include "memlocs.asm"
 #endif
 
 VIA_PORTB = VIA
@@ -29,7 +29,7 @@ TDHIGH = $04
 
 reset_via:
   lda #$FF    ; set all pins on port A to output
-  sta DDRA
+  sta VIA_DDRA
   lda #0
   sta VIA_PORTA    
   sta TOGGLETIME
@@ -57,19 +57,21 @@ init_via_timer:
 
 delay_once_via:
   pha
-  sta DELAYCOUNT
+  lda DELAYCOUNT
+  sta TOGGLETIME
   .(
     loop:
       sec
-      sbc
-      cmp #1
-      bcc loop
+      lda DELAYCOUNT
+      sbc TOGGLETIME
+      beq loop
   .)
   pla
   rts
 
 
 ; Interrupt handler, triggers every x seconds ( x set by TDHIGH TDLOW )
+nmi:
 irq:
   bit VIA_T1CL  ; read interrupt without clearing it (to acknowledge)
   inc DELAYCOUNT
@@ -81,7 +83,4 @@ irq:
   inc DELAYCOUNT+3
 end_irq:
   rti
-
-
-.word irq
 
