@@ -1,4 +1,5 @@
-* = $0300
+#include "memlocs.asm"
+* = ROMSTART
 
 ;; Quick tests to make sure the stack is working properly
 
@@ -6,15 +7,21 @@
 
 main
   jsr initstack
-  jsr pushtest1
-  jsr pushtest2
-  jsr pushzero
+  ;jsr pushtest1
+  ;jsr pushtest2
+  ;jsr pushzero
   ;jsr pop16
   ;jsr swap16
-  jsr add16
+  ;jsr add16
   ;jsr sub16
-  jsr dup16
-  jsr pop16
+  ;jsr dup16
+  ;jsr pop16
+
+  ;; multiplication
+  ;; running all three multtests should store 0x0050, 0x7008, 0x1E08
+  jsr multtest1
+  jsr multtest2
+  jsr multtest3         
   brk
 
 
@@ -38,9 +45,55 @@ pushtest2
   jsr push16
   rts
 
+multtest1:            ; 10 * 8 = 80 (0x50), this test has no rollover
+  lda #$0A
+  sta stackaccess
+  lda #$00
+  sta stackaccess+1
+  jsr push16
+  lda #$08
+  sta stackaccess
+  lda #$0
+  sta stackaccess+1
+  jsr push16
+  jsr mult16
+  rts
+
+multtest2:            ; 0x04AB * 0x0018 = 0x7008, this test has rollover
+  lda #$AB
+  sta stackaccess
+  lda #$04
+  sta stackaccess+1
+  jsr push16
+  lda #$18
+  sta stackaccess
+  lda #$00
+  sta stackaccess+1
+  jsr push16
+  jsr mult16
+  rts
+
+multtest3:            ; 0x04AB * 0x0A18 = 0x2F1E08 = 0x1E08, this test has rollover and overflows
+  lda #$AB
+  sta stackaccess
+  lda #$04
+  sta stackaccess+1
+  jsr push16
+  lda #$18
+  sta stackaccess
+  lda #$0A
+  sta stackaccess+1
+  jsr push16
+  jsr mult16
+  rts
+
 pushzero
   lda #$00
   sta stackaccess
   sta stackaccess+1
   rts
 
+.dsb $fffa-*,$ff
+.word $00
+.word ROMSTART
+.word $00

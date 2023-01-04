@@ -124,3 +124,75 @@ sub16:
   inx
   rts
 
+;; Multiply two unsigned binary 16 bit numbers
+;; I'm using Russian peasant multiplication:
+;;    1. Write the multiplier (m) and the multiplicand (c)
+;;    2. If c is odd, add m to the sum, else skip
+;;    3. Halve c (drop remainder) and double m
+;;    4. Repeat 2-3 until c==0
+mult16:
+  ; First add some space on the stack
+  dex
+  dex
+
+  ; Initialize both entries to zero
+  stz stackbase+1,x
+  stz stackbase+2,x
+  
+  ; run the algorithm
+  jsr addifodd
+
+  ; store the result
+  lda stackbase+1,x
+  sta stackbase+5,x
+  lda stackbase+2,x
+  sta stackbase+6,x
+
+  ; shrink stack back down two positions
+  inx
+  inx
+  inx
+  inx
+  rts
+
+
+;; Step 2
+addifodd:
+  lda #$01
+  bit stackbase+5,x         ; test is c is odd
+  .(
+    beq skip                ; skip to shift if even
+    clc                     ; else add
+    lda stackbase+3,x
+    adc stackbase+1,x
+    sta stackbase+1,x
+    lda stackbase+4,x
+    adc stackbase+2,x
+    sta stackbase+2,x
+    skip:
+  .)
+  jsr shiftmultvalues
+  .(                        ; check if c is zero
+    lda #$FF
+    bit stackbase+5,x
+    bne skip
+    bit stackbase+6,x
+    bne skip
+    rts
+    skip:
+  .)
+  jmp addifodd
+
+
+;; Step 3
+shiftmultvalues:
+  clc
+  asl stackbase+3,x         ; multiply m by two (note MSB is at highest address)
+  rol stackbase+4,x
+
+  clc
+  lsr stackbase+6,x         ; divide c by two, starting with LSB
+  ror stackbase+5,x
+  rts
+
+
