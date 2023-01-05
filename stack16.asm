@@ -165,15 +165,12 @@ mult16:
     ror stackbase+5,x
 
     ;; Check if the multiplier is now zero
-    .(                        ; check if c is zero
-      lda #$FF
-      bit stackbase+5,x
-      beq skip
-      bit stackbase+6,x
-      beq skip
-      jmp mult16loop
-      skip:
-    .)
+                             ; check if c is zero
+    lda #$FF
+    bit stackbase+5,x
+    bne mult16loop
+    bit stackbase+6,x
+    bne mult16loop
 
   ; store the result
   lda stackbase+1,x
@@ -187,41 +184,5 @@ mult16:
   inx
   inx
   rts
-
-addifodd:
-  lda #$01
-  bit stackbase+5,x         ; test is c is odd
-  .(
-    beq skip                ; skip to shift if even
-    clc                     ; else add
-    lda stackbase+3,x
-    adc stackbase+1,x
-    sta stackbase+1,x
-    lda stackbase+4,x
-    adc stackbase+2,x
-    sta stackbase+2,x
-    skip:
-  .)
-
-  ;; Bitshift the values
-  clc
-  asl stackbase+3,x         ; multiply m by two (note MSB is at highest address)
-  rol stackbase+4,x
-
-  clc
-  lsr stackbase+6,x         ; divide c by two, starting with LSB
-  ror stackbase+5,x
-
-  ;; Check if the multiplier is now zero
-  .(                        ; check if c is zero
-    lda #$FF
-    bit stackbase+5,x
-    bne skip
-    bit stackbase+6,x
-    bne skip
-    rts
-    skip:
-  .)
-  jmp addifodd
 
 
