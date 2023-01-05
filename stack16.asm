@@ -140,7 +140,40 @@ mult16:
   stz stackbase+2,x
   
   ; run the algorithm
-  jsr addifodd
+  mult16loop:
+    lda #$01
+    bit stackbase+5,x         ; test is c is odd
+    .(
+      beq skip                ; skip to shift if even
+      clc                     ; else add
+      lda stackbase+3,x
+      adc stackbase+1,x
+      sta stackbase+1,x
+      lda stackbase+4,x
+      adc stackbase+2,x
+      sta stackbase+2,x
+      skip:
+    .)
+
+    ;; Bitshift the values
+    clc
+    asl stackbase+3,x         ; multiply m by two (note MSB is at highest address)
+    rol stackbase+4,x
+
+    clc
+    lsr stackbase+6,x         ; divide c by two, starting with LSB
+    ror stackbase+5,x
+
+    ;; Check if the multiplier is now zero
+    .(                        ; check if c is zero
+      lda #$FF
+      bit stackbase+5,x
+      beq skip
+      bit stackbase+6,x
+      beq skip
+      jmp mult16loop
+      skip:
+    .)
 
   ; store the result
   lda stackbase+1,x
@@ -155,8 +188,6 @@ mult16:
   inx
   rts
 
-
-;; Step 2
 addifodd:
   lda #$01
   bit stackbase+5,x         ; test is c is odd
@@ -171,7 +202,17 @@ addifodd:
     sta stackbase+2,x
     skip:
   .)
-  jsr shiftmultvalues
+
+  ;; Bitshift the values
+  clc
+  asl stackbase+3,x         ; multiply m by two (note MSB is at highest address)
+  rol stackbase+4,x
+
+  clc
+  lsr stackbase+6,x         ; divide c by two, starting with LSB
+  ror stackbase+5,x
+
+  ;; Check if the multiplier is now zero
   .(                        ; check if c is zero
     lda #$FF
     bit stackbase+5,x
@@ -182,17 +223,5 @@ addifodd:
     skip:
   .)
   jmp addifodd
-
-
-;; Step 3
-shiftmultvalues:
-  clc
-  asl stackbase+3,x         ; multiply m by two (note MSB is at highest address)
-  rol stackbase+4,x
-
-  clc
-  lsr stackbase+6,x         ; divide c by two, starting with LSB
-  ror stackbase+5,x
-  rts
 
 
