@@ -260,10 +260,11 @@ div16withmod:
 
 
       ;; Set least significant bit to bit i of numerator
-      lda stackbase+1,x
       clc
       asl stackbase+7,x
       rol stackbase+8,x
+
+      lda stackbase+1,x
       adc #0
       sta stackbase+1,x
       lda stackbase+2,x
