@@ -241,7 +241,7 @@ div16withmod:
       asl stackbase+7,x
       rol stackbase+8,x
       dey
-      jmp loop
+      bra loop
     end:
   .)
 
@@ -303,7 +303,7 @@ div16withmod:
     skip:
       dey
       beq exit
-      jmp loop
+      bra loop
 
     exit:  
   .)
@@ -344,4 +344,11 @@ mod16:
   sta stackbase+4,x
   inx
   inx
+  rts
+
+;;;
+;;; Push value as a decimal number (convert to hex, then push)
+;;;
+pushdec16:
+  ;; TODO
   rts

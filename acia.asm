@@ -79,6 +79,34 @@ acia_rx_full:
   ply
   rts
 
+acia_read_word:
+  phy
+  lda #$08              ; %0000 1000, bit corresponding to read ready
+  ldy #1                ; start at 1, 0 holds the length
+  stz WORDSPC
+acia_rx_full:
+  bit ACIA_STATUS       ; check to see if buffer is full
+  beq acia_rx_full
+  lda ACIA_RX
+  beq doneword          ; stop if NULL
+  cmp #$20              ; stop if space
+  beq doneword
+  cmp #$09              ; stop if tab
+  beq doneword
+  cpy #$20              ; Check if we've stored more than 31 letters (0x20 = 32)
+  beq doneword          ; 32 letters is the limit because we have 5 bits for length (11111b = 31)
+  
+  ;; Else we have a non-whitespace character within the bounds of the word length, 
+  ;; so store it in WORDSPC offset by y
+  sta WORDSPC,y
+  iny
+  bra acia_rx_full
+doneword:
+  ;; Total length of the word should be stored at the first position
+  sty WORDSPC
+  ply
+  rts
+
 acia_wbuff_char:
   phy
   ldy OPT1

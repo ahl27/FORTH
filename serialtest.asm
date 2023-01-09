@@ -11,13 +11,13 @@
 
 main:
   jsr reset_acia
-  jmp buffstringtest
+  bra buffstringtest
 mainloop:
   jsr acia_read_char
   jsr acia_rbuff_char
   jsr acia_wbuff_char
   jsr acia_send_char
-  jmp mainloop
+  bra mainloop
 
 buffstringtest:
   ldy #0
@@ -26,13 +26,13 @@ buffnextchar:
   beq sendstring
   jsr acia_wbuff_char
   iny
-  jmp buffnextchar
+  bra buffnextchar
 sendstring:
   lda OPT1
   cmp OPT2
   beq mainloop
   jsr acia_send_char
-  jmp sendstring
+  bra sendstring
 
 message: 
   .aasc "Hello, world!"

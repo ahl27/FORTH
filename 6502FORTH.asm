@@ -43,11 +43,12 @@ TPTR=$5A
 TCNT=$5B
 
 ;; other
-DPTR=$5C
+DPTR=$5C                   ; Stores start of the entry for the word to execute
+                           ;       its code word is at (DPTR) + wordlength + 1 (len) + 2 (link)
 INPUT=$7F00                ; input space
 WORDSPC=$7EC0              ; temp space for parsing words (<=63 chars)
 
-jmp initstart
+bra initstart
 
 ;;;
 ;;; Initialization/Configuration
@@ -66,19 +67,21 @@ initstart:
 
 
   ;; Initialize dictionary top to last entry on dictionary (defined below)
-  lda #<d0entry 
+  lda #<d7entry 
   sta DT                   ; store first byte
-  lda #>d0entry
+  lda #>d7entry
   sta DT+1                 ; store second byte
 
 
   ;; jump to test code
-  jmp gotest
+  bra gotest
 
 ;;;
 ;;; File Includes
 ;;;
 #include "stack16.asm"
+#include "acia.asm"
+#include "via.asm"
 
 ;;;
 ;;; Dictionary
@@ -102,6 +105,60 @@ d0link:
 d0code:
   .word exit
 
+d1entry:
+  .byte 1
+  .byte "+"
+d1link:
+  .word d0entry
+d1code:
+  .word doplus
+
+d2entry:
+  .byte 1
+  .byte "*"
+d2link:
+  .word d1entry
+d2code:
+  .word dotimes
+
+d3entry:
+  .byte 3
+  .byte "dup"
+d3link:
+  .word d2entry
+d3code:
+  .word dodup
+
+d4entry:
+  .byte 4
+  .byte "swap"
+d4link:
+  .word d3entry
+d4code:
+  .word doswap
+
+d5entry:
+  .byte 1
+  .byte "/"
+d5link:
+  .word d4entry
+d5code:
+  .word dodiv
+
+d6entry:
+  .byte 3
+  .byte "mod"
+d6link:
+  .word d5entry
+d6code:
+  .word domod
+
+d7entry:
+  .byte 5
+  .byte "dolit"
+d7link:
+  .word d6entry
+  .word dolit
 
 ;;; Test Dictionary Entries go here
 doquitword
@@ -165,7 +222,7 @@ dolist:
 
   ;; IP now points to the code word of defined word we want
   ;; to execute, so we can just fall through to next
-  ; jmp next
+  ; bra next
 
 ;;; ENSURE DOLIST FALLS THROUGH TO NEXT!!
 
@@ -203,7 +260,7 @@ next:
   sta TMP2
 
   ;; Finally, we jump to the address stored in TMP2
-  jmp (TMP2)  
+  bra (TMP2)  
 
 
 ;;; EXIT Definition ;;;
@@ -221,7 +278,7 @@ exit:
   sta IP
 
   ;; Finally, execute the next instruction
-  jmp next
+  bra next
 
 
 ;;; DOLIT Definition ;;;
@@ -253,7 +310,7 @@ dolit:
   jsr push16
 
   ; then jump to next to execute
-  jmp next
+  bra next
 
 
 ;;;
@@ -261,28 +318,195 @@ dolit:
 ;;;
 doplus:
   jsr add16
-  jmp next
+  bra next
 
 dominus:
   jsr sub16
-  jmp next
+  bra next
 
 dodup:
   jsr dup16
-  jmp next
+  bra next
 
 dodrop:
   jsr pop16
-  jmp next
+  bra next
 
 doswap:
   jsr swap16
-  jmp next
+  bra next
+
+dotimes:
+  jsr mult16
+  bra next
+
+dodiv:
+  jsr div16
+  bra next
+
+domod:
+  jsr mod16
+  bra next
 
 ;;; Test code will go here
 gotest:
   nop
-  jmp gotest
+  bra gotest
 
 
+;;;
+;;; Interpreter
+;;;
 
+startinterp:
+  ;; Initialize buffer
+  jsr reset_acia
+
+startup_message:
+  ;; Load startup message into buffer
+  ldy #0
+  .(
+    loop:
+      lda message,y
+      beq exit
+      jsr acia_wbuff_char
+      iny
+      bra loop
+    exit:
+  .)
+  .(
+    loop:
+      lda OPT1
+      cmp OPT2
+      beq main_interp_loop
+      jsr acia_send_char
+      bra loop
+  .)
+main_interp_loop:
+ jsr acia_read_word
+ bra main_interp_loop           ; obviously this will be changed later
+
+matchword:
+  ;; Initialize the dictionary pointer
+  lda DT
+  sta DPTR
+  lda DT+1
+  sta DPTR+1
+
+nextentry:
+  ;; When DPTR is $0000, we're out of dictionary entries
+  lda DPTR
+  bne compareentry
+  lda DPTR+1
+  beq nomatch
+
+compareentry:
+  ;; Check for a word match
+  ;; Start by checking word lengths, then letters
+  ldy #0
+  lda (DPTR),y
+  and #%00011111        ; mask off leading three bits (tag)
+  cmp WORDSPC,y         ; compare word lengths
+  bne trynext           ; no match, try next one
+
+  ;; else we compare letters directly
+  ldy WORDSPC             ; load length of word, increment from end to front
+  .(
+    nextchar:
+      lda (DPTR),y
+      cmp WORDSPC,y
+      bne trynext         ; if letter not same, continue to next word
+      dey                 ; else go to the previous letter
+      bne nextchar        ; if this gets to zero, we've matched everything in the word
+  .)
+  bra gotmatch
+
+trynext:
+  ;; Loop to next entry
+  ;; recall DPTR points to start of entry for the word to execute
+  ;; DPTR + wordlength + 1 is the next entry (linked word)
+  ;; DPTR + wordlength + 1 + 2 is the codeword for that entry
+
+  lda (DPTR)              ; get word length
+  tay                     ; store in y, add one for pointer to next entry
+  iny
+  lda (DPTR),y            ; update DPTR to point to next entry
+  sta TMP1
+  iny                     ; nextentry checks if we're out of entries
+  lda (DPTR),y            ; just to be sure, we'll store the previous entry
+  sta DPTR+1              ; at DPTR+1, in case the current entry is 0
+  lda TMP1
+  sta DPTR
+  bra nextentry
+
+gotmatch:
+  ;; if we have a match, we need the code word
+  ;; this is at DPTR+wordlength+1+2
+  lda (DPTR)              ; word length
+  and #%00011111          ; mask off tag bits
+  inc                     ; +1 for length byte
+  inc                     ; +2 for link word
+  inc                     
+  clc
+  adc DPTR                ; add to address and store in dummy word entry
+  sta dummyparam
+  lda DPTR+1
+  adc #$0
+  sta dummyparam+1
+
+  ;; put dummy parameter address into IP
+  ;; NEXT will increment it, so it'll be the code address
+  lda #<dummycode
+  sta IP
+  lda #>dummycode
+  sta IP+1
+
+  ;; start execution by jumping to NEXT
+  bra next
+
+  ;; If not in dictionary, we can try to parse as a number
+
+nomatch:
+  ;; First we need to check that all letters are digits
+  ldy WORDSPC
+
+numcheck:
+  ;; 0-9 are ascii codes 0x30 - 0x39
+  lda WORDSPC,y
+  cmp #$30                ; carry is set if Register < Memory
+  bcc nointerpret         ; branches if strictly less than (letter < 0x30)
+  cmp #$3A                ; Paul Dourish uses 0x40 here, which feels like a mistake
+  bcs nointerpret         ; branches if greater than or equal (letter >= 0x40)
+  dey
+  bne numcheck
+
+  ;; Convert to number then push to stack
+  ldy WORDSPC
+  iny
+  lda #0
+  sta WORDSPC,y           ; null-terminate the string
+  lda #<WORDSPC           ; put address on stack threshold
+  sta stackaccess
+  lda #>WORDSPC
+  sta stackaccess+1
+  .(
+    inc stackaccess       ; first address is count, need to skip
+    bne done
+    inc stackaccess+1
+    done:   
+  .)
+  jsr pushdec16           ; interpret as decimal and push
+  ;jsr readdec16           ; convert value and leave on stack
+  bra main_interp_loop
+
+nointerpret:
+  bra main_interp_loop    ; I'll write this later
+
+greeting:
+  .aasc "Welcome to FORTH!\n"
+  .dsb 1,0
+
+.dsb $fffa-*,$ff
+.word $00
+.word ROMSTART
+.word $00  
